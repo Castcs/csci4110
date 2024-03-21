@@ -91,7 +91,8 @@ int main( int argc, char **argv )
         // 
         //  collect all global data locally (not good idea to do)
         //
-        MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
+	MPI_Request request;
+        MPI_Iallgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD, &request );
         
         //
         //  save current step if necessary (slightly different semantics than in other codes)
@@ -103,6 +104,7 @@ int main( int argc, char **argv )
         //
         //  compute all forces
         //
+	MPI_Wait( &request, MPI_STATUS_IGNORE );
         for( int i = 0; i < nlocal; i++ )
         {
             local[i].ax = local[i].ay = 0;

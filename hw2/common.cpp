@@ -91,29 +91,27 @@ void apply_force( particle_t &particle, particle_t &neighbor , double *dmin, dou
     double dx = neighbor.x - particle.x;
     double dy = neighbor.y - particle.y;
     double r2 = dx * dx + dy * dy;
-    if( r2 > cutoff*cutoff )
-        return;
+    double c2 = cutoff*cutoff;
+    if( r2 <= c2 ) {
+    	double rc = sqrt( r2 )/cutoff;
 	if (r2 != 0)
         {
-	   if (r2/(cutoff*cutoff) < *dmin * (*dmin))
-	      *dmin = sqrt(r2)/cutoff;
-           (*davg) += sqrt(r2)/cutoff;
+	   if (r2/(c2) < *dmin * (*dmin))
+	      *dmin = rc;
+           (*davg) += rc;
            (*navg) ++;
         }
-		
-    r2 = fmax( r2, min_r*min_r );
-    double r = sqrt( r2 );
- 
-    
-	
-    //
-    //  very simple short-range repulsive force
-    //
-    double coef = ( 1 - cutoff / r ) / r2 / mass;
-    particle.ax += coef * dx;
-    particle.ay += coef * dy;
-}
 
+    	r2 = fmax( r2, min_r*min_r );
+    	double r = sqrt( r2 );
+    	//
+    	//  very simple short-range repulsive force
+    	//
+    	double coef = ( 1 - cutoff / r ) / r2 / mass;
+    	particle.ax += coef * dx;
+    	particle.ay += coef * dy;
+    }
+}
 //
 //  integrate the ODE
 //
