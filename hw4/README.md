@@ -6,3 +6,5 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=CC ..
 cmake --build .
 ```
+<br>
+See build directions from Canvas/modules area
