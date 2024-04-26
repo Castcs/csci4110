@@ -1,0 +1,12 @@
+-------------------------------------------------------------------------------
+There are messages associated with the following module(s):
+-------------------------------------------------------------------------------
+
+cuda/11.1.1:
+   Warning - This module has been deprecated and is scheduled for removal.
+   Please transition to a module from the production pool instead.
+
+-------------------------------------------------------------------------------
+
+PI is approx 3.14159265358979323786228765591488354402827098965645, Error is 0.00000000000000012186432418737069838243769481778145
+31.4387 Runtime ms
