@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 	long double local_PI = 0.0;
-	long double *global_PI_ptr;
+	long double *global_PI_ptr = nullptr;
 
     // Initialise variables, require/accept passed-in value 
     auto start = std::chrono::steady_clock::now();  // set timer
@@ -46,7 +46,7 @@ int main(int argc, char** argv)
     if (world_rank == 0) {
         // Allocate memory for the global PI result at the master process
         MPI_Alloc_mem(sizeof(long double), MPI_INFO_NULL, &global_PI_ptr);
-        *global_PI_ptr = 0.0; // Initialize global PI
+        *global_PI_ptr = 3.0; // Initialize global PI
         MPI_Win_create(global_PI_ptr, sizeof(long double), sizeof(long double), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
     } else {
         // All other processes do not expose memory
@@ -55,9 +55,8 @@ int main(int argc, char** argv)
 	MPI_Win_fence(0, win);
     long double iterations = std::stod(argv[1]); // set to passed-in numeric value    
 	long double iterations_per_process = iterations / world_size;
-	MPI_Win_fence(0, win);
 
-	local_PI = calcPI(PI, n + world_rank * 2, sign, iterations / world_size);
+	local_PI = calcPI(0.0, 2.0 + (world_rank * 2), (world_rank % 2 == 0 ? 1 : -1), iterations / world_size);
 	MPI_Put(&local_PI, 1, MPI_LONG_DOUBLE, 0, 0, 1, MPI_LONG_DOUBLE, win);
 
 
@@ -68,7 +67,7 @@ int main(int argc, char** argv)
 		for (int i = 1; i < world_size; i++) {
 			long double temp;
 			MPI_Get(&temp, 1, MPI_LONG_DOUBLE, i, 0, 1, MPI_LONG_DOUBLE, win);
-			global_PI += temp;
+			*global_PI_ptr += temp;
 		}
 	}
 
@@ -80,7 +79,7 @@ int main(int argc, char** argv)
 
 	// Only the master process should print the result
 	if (world_rank == 0) {
-		printf("PI is approx %.50Lf, Error is %.50Lf\n", *global_PI, fabsl(*global_PI - PI25DT));
+		printf("PI is approx %.50Lf, Error is %.50Lf\n", *global_PI_ptr, fabsl(*global_PI_ptr - PI25DT));
 		auto end = std::chrono::steady_clock::now(); // end timer
 		auto diff = end - start; // compute time
 		std::cout << std::chrono::duration<double, std::milli>(diff).count() << " Runtime ms" << std::endl;
