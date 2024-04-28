@@ -29,8 +29,8 @@ int main(int argc, char** argv)
 	int world_size, world_rank;
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-	long double local_PI = 0.0;
-	long double *global_PI_ptr = nullptr;
+	long double local_PI = 3.0;
+	long double *global_PI_ptr;
 
     // Initialise variables, require/accept passed-in value 
     auto start = std::chrono::steady_clock::now();  // set timer
@@ -47,7 +47,7 @@ int main(int argc, char** argv)
         // Allocate memory for the global PI result at the master process
         MPI_Alloc_mem(sizeof(long double), MPI_INFO_NULL, &global_PI_ptr);
         *global_PI_ptr = 3.0; // Initialize global PI
-        MPI_Win_create(global_PI_ptr, sizeof(long double), sizeof(long double), MPI_INFO_NULL, MPI_COMM_WORLD, &win);
+        MPI_Win_create(global_PI_ptr, sizeof(long double), 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win);
     } else {
         // All other processes do not expose memory
         MPI_Win_create(NULL, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win);
@@ -56,20 +56,27 @@ int main(int argc, char** argv)
     long double iterations = std::stod(argv[1]); // set to passed-in numeric value    
 	long double iterations_per_process = iterations / world_size;
 
-	local_PI = calcPI(0.0, 2.0 + (world_rank * 2), (world_rank % 2 == 0 ? 1 : -1), iterations / world_size);
-	MPI_Put(&local_PI, 1, MPI_LONG_DOUBLE, 0, 0, 1, MPI_LONG_DOUBLE, win);
-
-
-	MPI_Win_fence(0, win); // Wait for all operations to finish
-
-	if (world_rank == 0) {
-		// Master process now collects the contributions from all processes
-		for (int i = 1; i < world_size; i++) {
-			long double temp;
-			MPI_Get(&temp, 1, MPI_LONG_DOUBLE, i, 0, 1, MPI_LONG_DOUBLE, win);
-			*global_PI_ptr += temp;
-		}
-	}
+    if (world_rank == 0) {
+    	// Master process initializes its part of PI
+    	*global_PI_ptr = calcPI(3.0, 2.0, 1, iterations_per_process);
+    	for (int i = 1; i < world_size; i++) {
+        	// Use MPI_Get to retrieve the partial PI values from the workers
+        	long double temp;
+        	MPI_Get(&temp, 1, MPI_LONG_DOUBLE, i, 0, 1, MPI_LONG_DOUBLE, win);
+        	*global_PI_ptr += temp;
+    	}
+   	// Synchronize after all MPI_Get calls
+   	MPI_Win_fence(0, win);
+   	// Compute the final value of PI
+   	*global_PI_ptr += 3.0 * (world_size - 1); // Add the starting value of PI from each worker
+    } else {
+   	// Worker processes calculate their portion of PI
+   	local_PI = calcPI(0.0, 2.0 + (world_rank * 2), (world_rank % 2 == 0 ? 1 : -1), iterations_per_process);
+   	// Use MPI_Put to send the local PI calculation to the master's window
+   	MPI_Put(&local_PI, 1, MPI_LONG_DOUBLE, 0, 0, 1, MPI_LONG_DOUBLE, win);
+   	// Synchronize after MPI_Put
+   	MPI_Win_fence(0, win);
+    }
 
 	MPI_Win_free(&win);
 	if (world_rank == 0) {
