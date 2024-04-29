@@ -45,7 +45,7 @@ int main(int argc, char** argv)
     }
 
     long double iterations = std::stod(argv[1]); // set to passed-in numeric value    
-    long double iterations_per_process = iterations / world_size;
+    long double iterations_per_process = std::ceil(iterations / world_size);
 
     MPI_Win win;
     if (world_rank == 0) {
@@ -55,6 +55,7 @@ int main(int argc, char** argv)
     } else {
     	MPI_Win_create(NULL, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win);
     }
+
     auto start = std::chrono::steady_clock::now();
     MPI_Win_fence(0, win); // Opening of the first RMA epoch
     local_PI = calcPI(2.0 + (world_rank * 2), (world_rank % 2 == 0 ? 1 : -1), iterations_per_process);
@@ -62,7 +63,7 @@ int main(int argc, char** argv)
     MPI_Win_fence(0, win);
 
     if (world_rank == 0) {
-        *global_PI_ptr += 3.0;
+        *global_PI_ptr += 3.0 + local_PI;
         printf("PI is approx %.50Lf, Error is %.50Lf\n", *global_PI_ptr, fabsl(*global_PI_ptr - PI25DT));
         auto end = std::chrono::steady_clock::now();
         std::cout << std::chrono::duration<double, std::milli>(end - start).count() << " Runtime ms" << std::endl;
